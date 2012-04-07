@@ -1,0 +1,19 @@
+body {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+        background-color: #8fb3fc;
+}
+
+#room {
+    border: 3px solid #5780d7;
+    background-color: #f4eeee;
+    min-height: 10em;
+}
+#type-bar {
+    padding: 3px;
+    background-color: #62b031;
+}
+.about {
+    padding: 3px;
+    background-color: #90db46;
+}

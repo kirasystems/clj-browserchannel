@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>BrowserChannel</title>
+    <!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+    <!--[if lt IE 9]>
+       <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link rel="stylesheet" href="css/default.css" media="screen" />
+  </head>
+  <body>
+    <div id="room">
+    </div>
+    <div id="type-bar">
+      <input id="msg-input" size="30" type="text" disabled="disabled"/>
+      <input id="send-button" type="button" value="Send" disabled="disabled"/>
+    </div>
+    <div class="about"><a href="https://github.com/thegeez/clj-browserchannel-demo">clj-browserchannel-demo</a></div>
+    <div class="about">
+      Written by: Gijs Stuurman
+      / <a href="http://twitter.com/thegeez">@thegeez</a>
+      / <a href="http://thegeez.github.com">Blog</a> / <a href="https://github.com/thegeez">GitHub</a></div>
+    <script type="text/javascript" src="js/bc.js"></script>
+    <script type="text/javascript">
+      bc.core.run();
+    </script>
+  </body>
+</html>
