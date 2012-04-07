@@ -41,14 +41,14 @@
                                              (doseq [client-id @clients]
                                                   (browserchannel/send-map client-id {"msg" (str "client " session-id " connected")})))})))
 
-#_(defn -main [& args]
+(defn -main [& args]
   (println "Using Jetty adapter")
   (jetty/run-jetty-async #'dev-app {:port (Integer.
                                            (or
                                             (System/getenv "PORT")
                                             8080)) :join? false}))
 
-(defn -main [& args]
+#_(defn -main [& args]
   (println "Using Netty adapter")
   (netty/run-netty #'dev-app {:port (Integer.
                                            (or
