@@ -44,6 +44,8 @@
   (events/listen js/window "unload" #(do
                                        (.disconnect channel ())
                                        (events/removeAll)))
+  (doto (.. channel getChannelDebug getLogger)
+      (.setLevel goog.debug.Logger.Level.OFF))
   (doto channel
     (.setHandler (handler))
     (.connect "/channel/test" "/channel/bind")
