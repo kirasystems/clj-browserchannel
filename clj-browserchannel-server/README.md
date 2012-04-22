@@ -4,6 +4,9 @@ Cross-browser compatible, real-time, bi-directional
 communication between ClojureScript and Clojure using Google Closure
 BrowserChannel.
 
+See also: [clj-browserchannel][0]
+[0]:https://github.com/thegeez/clj-browserchannel
+
 ## goog.net.BrowserChannel
 
 From the Google Closure API: "A [BrowserChannel][1] simulates a
