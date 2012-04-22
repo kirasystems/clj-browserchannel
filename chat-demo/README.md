@@ -1,8 +1,11 @@
-# clj-browserchannel-demo
+# chat-demo for clj-browserchannel-demo
 
 Cross-browser compatible, real-time, bi-directional
 communication between ClojureScript and Clojure using Google Closure
 BrowserChannel.
+
+See also: [clj-browserchannel][1]
+[1]:https://github.com/thegeez/clj-browserchannel
 
 ## Demo
 
