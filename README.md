@@ -66,7 +66,7 @@ streaming and non-streaming mode.
     lein run -m tasks.build-dev-js
     ;; compile cljs in advanced mode
     lein run -m tasks.build-advanced-js
-    lein run -m chat.core
+    lein run -m chat-demo.core
 
 Open two windows at [http://localhost:8080/index.html](http://localhost:8080/index.html) (Advanced compiled)
 or [http://localhost:8080/index-dev.html](http://localhost:8080/index-dev.html) and start chatting!
