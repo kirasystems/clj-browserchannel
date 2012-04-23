@@ -2,6 +2,9 @@
 
 Netty adapter for use with BrowserChannel on top of Aleph.
 
+See also: [clj-browserchannel][1]
+[1]:https://github.com/thegeez/clj-browserchannel
+
 ## About
 
 Written by:

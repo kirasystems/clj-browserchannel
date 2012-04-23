@@ -2,6 +2,9 @@
 
 Jetty async adapter for BrowserChannel
 
+See also: [clj-browserchannel][1]
+[1]:https://github.com/thegeez/clj-browserchannel
+
 ## About
 
 Written by:
