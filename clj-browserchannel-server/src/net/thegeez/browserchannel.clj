@@ -461,7 +461,7 @@
         outstanding-bytes (let [buffer (:array-buffer session)]
                             (if (empty? buffer)
                               0
-                              (reduce + 0 (map count (map json/json-str) buffer))))]
+                              (reduce + 0 (map count (map json/json-str buffer)))))]
     [has-back-channel last-sent-array-id outstanding-bytes]))
 
 ;; convience function to send data to a session
