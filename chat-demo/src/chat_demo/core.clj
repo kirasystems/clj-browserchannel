@@ -19,7 +19,7 @@
       file/wrap-file-info
       (browserchannel/wrap-browserchannel {:base "/channel"
                                            :on-session
-                                           (fn [session-id]
+                                           (fn [session-id req]
                                              (println "session " session-id "connected")
                                              
                                              (browserchannel/add-listener
