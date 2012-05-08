@@ -448,7 +448,7 @@
           session-agent (agent session)]
       (swap! sessions assoc id session-agent)
       (when-let [notify (:on-session options)]
-        (notify id))
+        (notify id req))
       session-agent)))
 
 (defn session-status [session]
