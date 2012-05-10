@@ -361,7 +361,8 @@
                      (update-in [:array-buffer] conj [next-array-id array])
                      (assoc :last-sent-array-id next-array-id))))
   (acknowledge-arrays [this array-id]
-                      (update-in this [:to-confirm-arrays-ids] drop-queue array-id))
+                      (update-in this [:to-confirm-array-ids]
+                        drop-queue (Long/parseLong array-id)))
   ;; tries to do the actual writing to the client
   ;; @todo the composition is a bit awkward in this method due to the
   ;; try catch and if mix
