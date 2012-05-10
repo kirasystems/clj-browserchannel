@@ -477,6 +477,14 @@
                                  (queue-string string)
                                  flush-buffer))))
 
+(gen-class
+  :name net.thegeez.browserchannel.DataArraySink
+  :methods [#^{:static true} [sendString [String String] void]])
+
+(defn -sendString [session-id string]
+  (send-string session-id string))
+
+
 ;; wrap the respond function from :reactor with the proper
 ;; responsewrapper for either IE or other clients
 (defn wrap-continuation-writers [handler options]
