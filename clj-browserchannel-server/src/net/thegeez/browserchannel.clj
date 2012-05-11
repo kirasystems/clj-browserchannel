@@ -50,9 +50,8 @@
   (.schedule scheduler f secs TimeUnit/SECONDS))
 
 ;; json responses are sent as "size-of-response\njson-response"
-(defn size-json-str [data]
-  (let [json (json/json-str data)
-        size (alength (.getBytes json "UTF-8"))]
+(defn size-json-str [json]
+  (let [size (alength (.getBytes json "UTF-8"))]
     (str size "\n" json)))
 
 ;; make sure the root URI for channels starts with a / for route matching
@@ -195,7 +194,7 @@
               (when (seq domain)
                 (async-adapter/write-chunk respond (str "<script>try{document.domain=\"" (pr-str (json/json-str domain)) "\";}catch(e){}</script>\n"))))
   (write [this data]
-         (async-adapter/write-chunk respond (str "<script>try {parent.m(" (pr-str (json/json-str data)) ")} catch(e) {}</script>\n"))
+         (async-adapter/write-chunk respond (str "<script>try {parent.m(" (pr-str data) ")} catch(e) {}</script>\n"))
          (when-not write-padding-sent
            (async-adapter/write-chunk respond ie-stream-padding)
            (set! write-padding-sent true)))
@@ -225,7 +224,7 @@
   ;; the client acknowledges received arrays when creating a new backwardchannel
   (acknowledge-arrays [this array-ids])
 
-  (queue-array [this array])
+  (queue-string [this string])
 
   ;; heartbeat is a timer to send noop over the backward channel
   (clear-heartbeat [this])
@@ -338,7 +337,7 @@
                            (let [session-agent *agent*]
                              (schedule (fn []
                                          (send-off session-agent #(-> %
-                                                                      (queue-array ["noop"])
+                                                                      (queue-string "[\"noop\"]")
                                                                       flush-buffer)))
                                        (:heartbeat-interval details))))))
   (clear-session-timeout [this]
@@ -355,10 +354,10 @@
                                    (schedule (fn []
                                                (send-off session-agent close "Timed out"))
                                              (:session-timeout-interval details))))))
-  (queue-array [this array]
+  (queue-string [this string]
                (let [next-array-id (inc last-sent-array-id)]
                  (-> this
-                     (update-in [:array-buffer] conj [next-array-id array])
+                     (update-in [:array-buffer] conj [next-array-id string])
                      (assoc :last-sent-array-id next-array-id))))
   (acknowledge-arrays [this array-id]
                       (update-in this [:to-confirm-array-ids]
@@ -371,10 +370,15 @@
                   this ;; nothing to do when there's no connection
                   (if-let [buffer (seq array-buffer)]
                     (try
-                      ;; write throws exception when the connection is closed
-                      (write (:respond back-channel) buffer)
+                      ;; buffer contains [[1 json-str] ...] can't use
+                      ;; json-str which will double escape the json
+                      (let [data (str "["
+                                      (str/join "," (map (fn [[n d]] (str "[" n "," d "]")) buffer))
+                                      "]")]
+                        ;; write throws exception when the connection is closed
+                        (write (:respond back-channel) data))
                       ;; size is an approximation
-                      (let [this (let [size (reduce + 0 (map count (map json/json-str buffer)))]
+                      (let [this (let [size (reduce + 0 (map count (map second buffer)))]
                                    (-> this
                                        (assoc :array-buffer clojure.lang.PersistentQueue/EMPTY)
                                        (assoc :last-sent-array-id (first (last buffer)))
@@ -456,22 +460,23 @@
   (let [has-back-channel (if (:back-channel session) 1 0)
         last-sent-array-id (:last-sent-array-id session)
         ;; the sum of all the data that is still to be send
-        ;; technically the size is padded by "[","," and "]" dividers inserted by
-        ;; the encoding but this number is only used for estimation on
-        ;; the client side.
         outstanding-bytes (let [buffer (:array-buffer session)]
                             (if (empty? buffer)
                               0
-                              (reduce + 0 (map count (map json/json-str buffer)))))]
+                              (reduce + 0 (map count (map second buffer)))))]
     [has-back-channel last-sent-array-id outstanding-bytes]))
 
 ;; convience function to send data to a session
-;; the data will be queued until there is a backchannel to send it over
-(defn send-map [session-id map]
+;; the data will be queued until there is a backchannel to send it
+;; over
+(defn send-string [session-id string]
   (when-let [session-agent (get @sessions session-id)]
     (send-off session-agent #(-> %
-                                 (queue-array map)
+                                 (queue-string string)
                                  flush-buffer))))
+
+(defn send-map [session-id map]
+  (send-string session-id (json/json-str map)))
 
 ;; wrap the respond function from :reactor with the proper
 ;; responsewrapper for either IE or other clients
@@ -545,7 +550,7 @@
         {:status 200
          :headers (assoc (:headers options) "Content-Type" "application/javascript")
          :body
-         (size-json-str [[0,["c", session-id, host-prefix, 8]]])})
+         (size-json-str (json/json-str [[0,["c", session-id, host-prefix, 8]]]))})
       ;; For existing sessions:
       ;; Forward sent data by client to listeners
       ;; reply with
@@ -558,7 +563,7 @@
         (let [status (session-status @session-agent)]
           {:status 200
            :headers (:headers options)
-           :body (size-json-str status)})))))
+           :body (size-json-str (json/json-str status))})))))
 
 ;; GET req server->client is a backwardchannel opened by client
 (defn handle-backward-channel [req session-agent options]
