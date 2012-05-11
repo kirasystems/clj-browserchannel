@@ -2,6 +2,7 @@
   (:require [net.thegeez.browserchannel :as browserchannel]
             [net.thegeez.jetty-async-adapter :as jetty]
             [net.thegeez.netty-adapter :as netty]
+            [clojure.data.json :as json]
             [ring.middleware.resource :as resource]
             [ring.middleware.file-info :as file]))
 
@@ -19,7 +20,7 @@
       file/wrap-file-info
       (browserchannel/wrap-browserchannel {:base "/channel"
                                            :on-session
-                                           (fn [session-id]
+                                           (fn [session-id req]
                                              (println "session " session-id "connected")
                                              
                                              (browserchannel/add-listener
@@ -29,17 +30,25 @@
                                                 (println "session " session-id " disconnected: " reason)
                                                 (swap! clients disj session-id)
                                                 (doseq [client-id @clients]
-                                                  (browserchannel/send-map client-id {"msg" (str "client " session-id " disconnected " reason)}))))
+                                                  (browserchannel/send-string client-id
+                                                    (json/json-str {"msg" (str "client "
+                                                                                session-id
+                                                                                " disconnected "
+                                                                                reason)})))))
                                              (browserchannel/add-listener
                                               session-id
                                               :map
                                               (fn [map]
                                                 (println "session " session-id " sent " map)
                                                 (doseq [client-id @clients]
-                                                  (browserchannel/send-map client-id map))))
+                                                  (browserchannel/send-string client-id
+                                                    (json/json-str map)))))
                                              (swap! clients conj session-id)
                                              (doseq [client-id @clients]
-                                                  (browserchannel/send-map client-id {"msg" (str "client " session-id " connected")})))})))
+                                                  (browserchannel/send-string client-id
+                                                    (json/json-str {"msg" (str "client "
+                                                                               session-id
+                                                                               "connected")}))))})))
 
 (defn -main [& args]
   (println "Using Jetty adapter")
