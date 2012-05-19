@@ -274,11 +274,7 @@
                     ;; [[id_lowest, data] .. [id_highest, data]]
                     array-buffer
 
-                    ;; send out array ids waiting to be acknowledged
-                    to-confirm-array-ids
-
-                    ;; needed to be kept, to resume counting when both
-                    ;; array-buffer and to-confirm-array-ids are empty
+                    ;; last flushed array id
                     last-sent-array-id
 
                     ;; ScheduleTask or nil
@@ -359,9 +355,7 @@
                  (-> this
                      (update-in [:array-buffer] conj [next-array-id string])
                      (assoc :last-sent-array-id next-array-id))))
-  (acknowledge-arrays [this array-id]
-                      (update-in this [:to-confirm-array-ids]
-                        drop-queue (Long/parseLong array-id)))
+  (acknowledge-arrays [this array-id])
   ;; tries to do the actual writing to the client
   ;; @todo the composition is a bit awkward in this method due to the
   ;; try catch and if mix
@@ -382,7 +376,6 @@
                                    (-> this
                                        (assoc :array-buffer clojure.lang.PersistentQueue/EMPTY)
                                        (assoc :last-sent-array-id (first (last buffer)))
-                                       (update-in [:to-confirm-array-ids] into (map first buffer))
                                        (update-in [:back-channel :bytes-sent] + size)))
                             ;; clear-back-channel closes the back
                             ;; channel when the channel does not
@@ -440,7 +433,6 @@
                                 details
                                 nil ;; backchannel
                                 clojure.lang.PersistentQueue/EMPTY ;; array-buffer
-                                clojure.lang.PersistentQueue/EMPTY ;; sent out array ids
                                 0 ;; last-sent-array-id, the array
                                 ;; with id 0 will be sent as an answer to
                                 ;; the first forward-channel POST
