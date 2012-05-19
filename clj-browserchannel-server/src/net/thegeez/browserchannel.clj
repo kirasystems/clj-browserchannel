@@ -358,8 +358,7 @@
       (-> this
           (assoc :last-acknowledged-array-id array-id)
           ;; don't need to keep already array ids sent before acknowledged one
-          (update-in [:array-buffer] drop-queue array-id)
-          (flush-buffer))))
+          (update-in [:array-buffer] drop-queue array-id))))
   ;; tries to do the actual writing to the client
   ;; @todo the composition is a bit awkward in this method due to the
   ;; try catch and if mix
