@@ -352,7 +352,10 @@
                (let [next-array-id (inc last-sent-array-id)]
                  (-> this
                      (assoc :last-sent-array-id next-array-id)
-                     (update-in [:to-acknowledge-buffer] conj [next-array-id string])
+                     (update-in [:to-acknowledge-buffer]
+                       #(if (not= string "[\"noop\"]")
+                            (conj % [next-array-id string])
+                            %))
                      (update-in [:to-flush-buffer] conj [next-array-id string]))))
   (acknowledge-arrays [this array-id]
     (let [array-id (Long/parseLong array-id)
