@@ -264,11 +264,16 @@
                     ;; arrays to send out to client
                     ;; is a queue
                     ;; [[id_lowest, data] .. [id_highest, data]]
-                    array-buffer
+                    to-flush-buffer
 
-                    ;; we might have flushed more than the client has
-                    ;; acknowledged
-                    last-acknowledged-array-id
+                    ;; keeps messages which have not yet been acknowledged
+                    ;; by the client
+                    ;; is a queue
+                    ;; [[id_lowest, data] .. [id_highest, data]]
+                    to-acknowledge-buffer
+
+                    ;; used to determine the next array id
+                    last-sent-array-id
 
                     ;; ScheduleTask or nil
                     heartbeat-timeout
@@ -344,29 +349,27 @@
                                                (send-off session-agent close "Timed out"))
                                              (:session-timeout-interval details))))))
   (queue-string [this string]
-               (let [next-array-id
-                 (inc (if (empty? array-buffer)
-                           last-acknowledged-array-id
-                           ;; if flush-buffer fails after acknowledge-arrays,
-                           ;; it could happen that last sent array id is
-                           ;; different from last acknowledged one
-                           (first (last array-buffer))))]
+               (let [next-array-id (inc last-sent-array-id)]
                  (-> this
-                     (update-in [:array-buffer] conj [next-array-id string]))))
+                     (assoc :last-sent-array-id next-array-id)
+                     (update-in [:to-acknowledge-buffer]
+                       #(if (not= string "[\"noop\"]")
+                            (conj % [next-array-id string])
+                            %))
+                     (update-in [:to-flush-buffer] conj [next-array-id string]))))
   (acknowledge-arrays [this array-id]
-    (let [array-id (Long/parseLong array-id)]
+    (let [array-id (Long/parseLong array-id)
+          new-buffer (drop-queue to-acknowledge-buffer array-id)]
       (-> this
-          (assoc :last-acknowledged-array-id array-id)
-          ;; don't need to keep already array ids sent before acknowledged one
-          (update-in [:array-buffer] drop-queue array-id))))
+          (assoc :to-acknowledge-buffer new-buffer)
+          (assoc :to-flush-buffer new-buffer))))
   ;; tries to do the actual writing to the client
   ;; @todo the composition is a bit awkward in this method due to the
   ;; try catch and if mix
   (flush-buffer [this]
                 (if-not back-channel
                   this ;; nothing to do when there's no connection
-                  ;; only flush unacknowledged arrays
-                  (if-let [buffer (seq (drop-queue array-buffer last-acknowledged-array-id))]
+                  (if-let [buffer (seq to-flush-buffer)]
                     (try
                       ;; buffer contains [[1 json-str] ...] can't use
                       ;; json-str which will double escape the json
@@ -380,7 +383,7 @@
                                    (-> this
                                        ;; assume last array just sent is acknowledge
                                        ;; so we don't send it again on next flush
-                                       (assoc :last-acknowledged-array-id (first (last buffer)))
+                                       (assoc :to-flush-buffer clojure.lang.PersistentQueue/EMPTY)
                                        (update-in [:back-channel :bytes-sent] + size)))
                             ;; clear-back-channel closes the back
                             ;; channel when the channel does not
@@ -437,8 +440,9 @@
           session (-> (Session. id
                                 details
                                 nil ;; backchannel
-                                clojure.lang.PersistentQueue/EMPTY ;; array-buffer
-                                0 ;; last-acknowledged-array-id, the array
+                                clojure.lang.PersistentQueue/EMPTY ;; to-flush-buffer
+                                clojure.lang.PersistentQueue/EMPTY ;; to-acknowledge-buffer
+                                0 ;; last-sent-array-id, the array
                                 ;; with id 0 will be sent as an answer to
                                 ;; the first forward-channel POST
                                 nil ;; heartbeat-timeout
@@ -455,9 +459,12 @@
 
 (defn session-status [session]
   (let [has-back-channel (if (:back-channel session) 1 0)
-        last-acknowledged-array-id (:last-acknowledged-array-id session)
+        last-acknowledged-array-id
+        (if (empty? (:to-acknowledge-buffer session))
+          (:last-sent-array-id session)
+          (dec (first (peek (:to-acknowledge-buffer session)))))
         ;; the sum of all the data that is still to be send
-        outstanding-bytes (let [buffer (:array-buffer session)]
+        outstanding-bytes (let [buffer (:to-acknowledge-buffer session)]
                             (if (empty? buffer)
                               0
                               (reduce + 0 (map count (map second buffer)))))]
