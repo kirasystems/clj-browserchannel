@@ -31,6 +31,9 @@
    :data-threshold (* 10 1024) 
    })
 
+
+(def noop-string "[\"noop\"]")
+
 ;; almost all special cases are for making this work with IE
 (def ie-headers
   {"Content-Type" "text/html"})
@@ -208,10 +211,10 @@
   (outstanding-bytes [this])
   )
 
-(deftype ArrayBuffer [;; id of the next array that is conj'ed, can't
+(deftype ArrayBuffer [;; id of the last array that is conj'ed, can't
                       ;; always be derived because flush buffer might
                       ;; be empty
-                      next-array-id
+                      array-id
 
                       ;; needed for session status
                       last-acknowledged-id
@@ -227,10 +230,11 @@
                       ]
   IArrayBuffer
   (queue [this string]
-        (ArrayBuffer. (inc next-array-id)
-                      last-acknowledged-id
-                      to-acknowledge-arrays
-                      (conj to-flush-arrays [next-array-id string])))
+         (let [next-array-id (inc array-id)]
+           (ArrayBuffer. next-array-id
+                         last-acknowledged-id
+                         to-acknowledge-arrays
+                         (conj to-flush-arrays [next-array-id string]))))
 
   ;; id may cause the following splits:
   ;; normal case:
@@ -242,7 +246,7 @@
   ;; everything before id can be discarded, everything after id
   ;; becomes new flush-arrs and is resend
   (acknowledge-id [this id]
-                  (ArrayBuffer. next-array-id
+                  (ArrayBuffer. array-id
                                 id
                                 clojure.lang.PersistentQueue/EMPTY
                                 (into (drop-queue to-acknowledge-arrays id)
@@ -252,11 +256,11 @@
   ;; to-flush-arrays is empty
   (to-flush [this]
             (when-let [to-flush (seq to-flush-arrays)]
-              [to-flush (ArrayBuffer. next-array-id
+              [to-flush (ArrayBuffer. array-id
                                       last-acknowledged-id
                                       (into to-acknowledge-arrays
                                             (remove (fn [[id string]]
-                                                      (= string "[\"noop\"]"))
+                                                      (= string noop-string))
                                                     to-flush))
                                       clojure.lang.PersistentQueue/EMPTY)]))
   (last-acknowledged-id [this]
@@ -386,7 +390,7 @@
                            (let [session-agent *agent*]
                              (schedule (fn []
                                          (send-off session-agent #(-> %
-                                                                      (queue-string "[\"noop\"]")
+                                                                      (queue-string noop-string)
                                                                       flush-buffer)))
                                        (:heartbeat-interval details))))))
   (clear-session-timeout [this]
@@ -485,7 +489,9 @@
                                 details
                                 nil ;; backchannel
                                 (ArrayBuffer.
-                                 0 ;; next-array-id
+                                 0 ;; array-id, 0 is never used by the
+                                 ;; array-buffer, it is used by the
+                                 ;; first message with the session id
                                  0 ;; last-acknowledged-id
                                  ;; to-acknowledge-arrays
                                  clojure.lang.PersistentQueue/EMPTY
