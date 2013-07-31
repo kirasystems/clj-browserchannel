@@ -34,8 +34,7 @@
       (send ag (fn [{:keys [driver url] :as a}]
                   (w/to driver url)
                   a)))
-    ;; can't use await here, the send are fired from separate threads
-    ;;(apply await actors)
+    (doall (map await agents))
     (println "All launched")
     (doseq [ag agents]
       (send ag (fn send-msg [a]
