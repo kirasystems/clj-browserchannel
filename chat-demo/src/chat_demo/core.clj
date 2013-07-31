@@ -1,7 +1,7 @@
 (ns chat-demo.core
   (:require [net.thegeez.browserchannel :as browserchannel]
             [net.thegeez.jetty-async-adapter :as jetty]
-            #_[net.thegeez.netty-adapter :as netty]
+            [net.thegeez.netty-adapter :as netty]
             [ring.middleware.resource :as resource]
             [ring.middleware.file-info :as file]))
 
