@@ -3,6 +3,7 @@
   (:import (org.eclipse.jetty.server.handler AbstractHandler)
            (org.eclipse.jetty.server Server Request Response)
            (org.eclipse.jetty.server.nio SelectChannelConnector)
+           (org.eclipse.jetty.server.ssl SslSocketConnector)
            (org.eclipse.jetty.continuation Continuation ContinuationSupport ContinuationListener)
            (org.eclipse.jetty.io EofException)
            (javax.servlet.http HttpServletRequest))
@@ -16,11 +17,11 @@
 (deftype JettyAsyncResponse [continuation]
   async-adapter/IAsyncAdapter
   (head [this status headers]
-        (doto (.getServletResponse continuation)
-          (servlet/set-status status)
-          (servlet/set-headers (assoc headers
-                                 "Transfer-Encoding" "chunked"))
-          (.flushBuffer)))
+    (doto (.getServletResponse continuation)
+      (servlet/set-status status)
+      (servlet/set-headers (assoc headers
+                             "Transfer-Encoding" "chunked"))
+      (.flushBuffer)))
   (write-chunk [this data]
                (doto (.getWriter (.getServletResponse continuation))
                  (.write data)
@@ -30,8 +31,19 @@
   (close [this]
          (.complete continuation)))
 
-
-
+(defn- add-ssl-connector!
+  "Add an SslSocketConnector to a Jetty Server instance."
+  [^Server server options]
+  (let [ssl-connector (SslSocketConnector.)]
+    (doto ssl-connector
+      (.setPort        (options :ssl-port 443))
+      (.setKeystore    (options :keystore))
+      (.setKeyPassword (options :key-password)))
+    (when (options :truststore)
+      (.setTruststore ssl-connector (options :truststore)))
+    (when (options :trust-password)
+      (.setTrustPassword ssl-connector (options :trust-password)))
+    (.addConnector server ssl-connector)))
 
 (defn- proxy-handler
   "Returns an Jetty Handler implementation for the given Ring handler."
@@ -70,6 +82,8 @@
         server    (doto (Server.)
                     (.addConnector connector)
                     (.setSendDateHeader true))]
+    (when (or (options :ssl?) (options :ssl-port))
+      (add-ssl-connector! server options))
     server))
 
 (defn ^Server run-jetty-async
