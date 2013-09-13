@@ -36,7 +36,7 @@
   [^Server server options]
   (let [ssl-connector (SslSocketConnector.)]
     (doto ssl-connector
-      (.setPort        (options :ssl-port 443))
+      (.setPort        (options :ssl-port 8443))
       (.setKeystore    (options :keystore))
       (.setKeyPassword (options :key-password)))
     (when (options :truststore)
