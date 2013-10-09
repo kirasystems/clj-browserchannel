@@ -3,7 +3,8 @@
   (:import (org.eclipse.jetty.server.handler AbstractHandler)
            (org.eclipse.jetty.server Server Request Response)
            (org.eclipse.jetty.server.nio SelectChannelConnector)
-           (org.eclipse.jetty.server.ssl SslSocketConnector)
+           (org.eclipse.jetty.server.ssl SslSelectChannelConnector)
+           (org.eclipse.jetty.util.ssl SslContextFactory)
            (org.eclipse.jetty.continuation Continuation ContinuationSupport ContinuationListener)
            (org.eclipse.jetty.io EofException)
            (javax.servlet.http HttpServletRequest))
@@ -31,7 +32,7 @@
   (close [this]
          (.complete continuation)))
 
-(defn- add-ssl-connector!
+#_(defn- add-ssl-connector!
   "Add an SslSocketConnector to a Jetty Server instance."
   [^Server server options]
   (let [ssl-connector (SslSocketConnector.)]
@@ -44,6 +45,24 @@
     (when (options :trust-password)
       (.setTrustPassword ssl-connector (options :trust-password)))
     (.addConnector server ssl-connector)))
+    
+(defn- add-ssl-connector!
+  "Add an SslSelectChannelConnector to a Jetty Server instance."
+  [^Server server options]
+  (let [ssl-context-factory (SslContextFactory.)]
+    (doto ssl-context-factory
+      (.setKeyStorePath (options :keystore))
+      (.setKeyStorePassword  (options :key-password)))
+    (when (options :truststore)
+      (.setTrustStore ssl-context-factory (options :truststore)))
+    (when (options :trust-password)
+      (.setTrustStorePassword ssl-context-factory (options :trust-password)))
+    (when (options :include-cipher-suites)
+      (.setIncludeCipherSuites ssl-context-factory (into-array (options :include-cipher-suites))))
+    (when (options :include-protocols)
+      (.setIncludeProtocols ssl-context-factory (into-array (options :include-protocols))))
+    (let [conn (SslSelectChannelConnector. ssl-context-factory)]
+      (.addConnector server (doto conn (.setPort (options :ssl-port 8443)))))))
 
 (defn- proxy-handler
   "Returns an Jetty Handler implementation for the given Ring handler."
