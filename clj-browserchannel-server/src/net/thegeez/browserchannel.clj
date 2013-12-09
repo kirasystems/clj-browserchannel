@@ -24,8 +24,8 @@
              "X-Content-Type-Options" "nosniff" 
              }
    :base "/channel" ;; root for /test and /bind urls
-   :keep-alive-interval 10  ;; seconds, keep less than session-time-out
-   :session-timeout-interval 15 ;; seconds
+   :keep-alive-interval 30  ;; seconds, keep less than session-time-out
+   :session-timeout-interval 120 ;; seconds
    ;; after this number of bytes a
    ;; backchannel will always be closed
    :data-threshold (* 10 1024) 
@@ -80,16 +80,18 @@
         queue
         (recur (pop queue) id)))))
 
-
+        
+;; Key value pairs do not always come ordered by request number.
+;; E.g. {req0_key1 val01, req1_key1 val11, req0_key2 val02, req1_key2 val12}
 (defn transform-url-data [data]
-  (let [ofs (get data "ofs" "0")
+  (let [ofs    (get data "ofs" "0")
         pieces (dissoc data "count" "ofs")]
     {:ofs (Long/parseLong ofs)
      :maps (->> (for [[k v] pieces]
                   (let [[_ n k] (re-find #"req(\d+)_(\w+)" k)]
                     [n {k v}]))
-                (partition-by first)
-                (map #(into {} (map second %))))}))
+                (group-by first)    ; {0 [[0 [k1 v2]] [0 [k2 v2]]],1 [[1 [k1 v1]] [1 [k2 v2]]]}
+                (map #(into {} (map second (val %)))))}))
 
 (assert (= {:ofs 0 :maps [{"x" "3" "y" "10"} {"abc" "def"}]}
            (transform-url-data {"count" "2"

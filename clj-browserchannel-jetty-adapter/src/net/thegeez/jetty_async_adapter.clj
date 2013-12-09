@@ -31,20 +31,6 @@
                  (throw async-adapter/ConnectionClosedException)))
   (close [this]
          (.complete continuation)))
-
-#_(defn- add-ssl-connector!
-  "Add an SslSocketConnector to a Jetty Server instance."
-  [^Server server options]
-  (let [ssl-connector (SslSocketConnector.)]
-    (doto ssl-connector
-      (.setPort        (options :ssl-port 8443))
-      (.setKeystore    (options :keystore))
-      (.setKeyPassword (options :key-password)))
-    (when (options :truststore)
-      (.setTruststore ssl-connector (options :truststore)))
-    (when (options :trust-password)
-      (.setTrustPassword ssl-connector (options :trust-password)))
-    (.addConnector server ssl-connector)))
     
 (defn- add-ssl-connector!
   "Add an SslSelectChannelConnector to a Jetty Server instance."
