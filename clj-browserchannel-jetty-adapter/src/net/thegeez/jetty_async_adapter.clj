@@ -30,6 +30,9 @@
                (when (.checkError (.getWriter (.getServletResponse continuation)))
                  (throw async-adapter/ConnectionClosedException)))
   (close [this]
+    (doto (.getWriter (.getServletResponse continuation))
+      (.write "")
+      (.flush))
          (.complete continuation)))
     
 (defn- add-ssl-connector!
