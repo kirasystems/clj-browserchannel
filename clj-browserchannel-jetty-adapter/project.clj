@@ -1,4 +1,4 @@
-(defproject net.thegeez/clj-browserchannel-jetty-adapter "0.0.1"
+(defproject net.thegeez/clj-browserchannel-jetty-adapter "0.0.2"
   :description "Jetty async adapter for BrowserChannel"
   :url ""
   :dependencies [[org.clojure/clojure "1.3.0"]
