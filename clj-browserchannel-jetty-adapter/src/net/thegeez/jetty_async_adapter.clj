@@ -1,13 +1,14 @@
 (ns net.thegeez.jetty-async-adapter
   "BrowserChannel adapter for the Jetty webserver, with async HTTP."
-  (:import (org.eclipse.jetty.server.handler AbstractHandler)
-           (org.eclipse.jetty.server Server Request Response)
-           (org.eclipse.jetty.server.nio SelectChannelConnector)
-           (org.eclipse.jetty.server.ssl SslSelectChannelConnector)
-           (org.eclipse.jetty.util.ssl SslContextFactory)
-           (org.eclipse.jetty.continuation Continuation ContinuationSupport ContinuationListener)
-           (org.eclipse.jetty.io EofException)
-           (javax.servlet.http HttpServletRequest))
+  (:import [org.eclipse.jetty.server.handler AbstractHandler]
+           [org.eclipse.jetty.server Server Request Response]
+           [org.eclipse.jetty.server.nio SelectChannelConnector]
+           [org.eclipse.jetty.server.ssl SslSelectChannelConnector]
+           [org.eclipse.jetty.util.ssl SslContextFactory]
+           [org.eclipse.jetty.continuation Continuation ContinuationSupport ContinuationListener]
+           [org.eclipse.jetty.io EofException]
+           [javax.servlet.http HttpServletRequest]
+           [java.security KeyStore])
   (:require [ring.util.servlet :as servlet]
             [net.thegeez.async-adapter :as async-adapter]))
 
@@ -15,17 +16,15 @@
 ;; (https://github.com/mmcgrana/ring/tree/jetty-async)
 ;; This has failed write support
 
-(deftype JettyAsyncResponse [continuation]
+(deftype JettyAsyncResponse [^Continuation continuation]
   async-adapter/IAsyncAdapter
   (head [this status headers]
     (doto (.getServletResponse continuation)
-      (servlet/set-status status)
-      (servlet/set-headers (assoc headers
-                             "Transfer-Encoding" "chunked"))
+      (servlet/update-servlet-response {:status  status, :headers (assoc headers "Transfer-Encoding" "chunked")})
       (.flushBuffer)))
   (write-chunk [this data]
                (doto (.getWriter (.getServletResponse continuation))
-                 (.write data)
+                 (.write ^String data)
                  (.flush))
                (when (.checkError (.getWriter (.getServletResponse continuation)))
                  (throw async-adapter/ConnectionClosedException)))
@@ -43,7 +42,7 @@
       (.setKeyStorePath (options :keystore))
       (.setKeyStorePassword  (options :key-password)))
     (when (options :truststore)
-      (.setTrustStore ssl-context-factory (options :truststore)))
+      (.setTrustStore ssl-context-factory ^KeyStore (options :truststore)))
     (when (options :trust-password)
       (.setTrustStorePassword ssl-context-factory (options :trust-password)))
     (when (options :include-cipher-suites)
@@ -66,20 +65,17 @@
             (servlet/update-servlet-response response response-map)
             (.setHandled base-request true))
           :http
-          (let [reactor (:reactor response-map)
-                ;; continuation lives until written to!
-                continuation (.startAsync request)
-                emit (JettyAsyncResponse. continuation)]
+          (let [reactor      (:reactor response-map)
+                continuation ^Continuation (.startAsync request)  ;; continuation lives until written to!
+                emit         (JettyAsyncResponse. continuation)]
             (.addContinuationListener continuation
                                       (proxy [ContinuationListener] []
                                         (onComplete [c] nil)
-                                        (onTimeout [c]
-                                                   (.complete c))))
+                                        (onTimeout [^Continuation c] (.complete c))))
 
             ;; 4 minutes is google default
             (.setTimeout continuation (get options :response-timeout (* 4 60 1000)))
-            (reactor emit)
-            ))))))
+            (reactor emit)))))))
 
 (defn- create-server
   "Construct a Jetty Server instance."

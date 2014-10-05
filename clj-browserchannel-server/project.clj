@@ -1,4 +1,4 @@
-(defproject net.thegeez/clj-browserchannel-server "0.0.7"
+(defproject net.thegeez/clj-browserchannel-server "0.0.7-SNAPSHOT"
   :description "BrowserChannel server implementation in Clojure"
   :dependencies [[org.clojure/clojure "1.6.0" :scope "provided"]
                  [ring/ring-core "1.3.1"]
