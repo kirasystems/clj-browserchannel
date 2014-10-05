@@ -5,8 +5,8 @@
             [clojure.data.json :as json]
             [clojure.string :as str]
             [net.thegeez.async-adapter :as async-adapter])
-  (:import [java.util.concurrent ScheduledExecutorService Executors TimeUnit]))
-;; @todo: out of order acks and maps
+  (:import [java.util.concurrent ScheduledExecutorService Executors TimeUnit Callable ScheduledFuture]))
+;; @todo: out of order acks and maps - AKH the maps at least is taken care of.
 ;; @todo use a more specific Exception for failing writes, which
 ;; indicate closed connection
 ;; @todo SSL in jetty-async-adapter
@@ -49,11 +49,11 @@
 
 ;; scheduling a task returns a ScheduledFuture, which can be stopped
 ;; with (.cancel task false) false says not to interrupt running tasks
-(defn schedule [f secs]
-  (.schedule scheduler f secs TimeUnit/SECONDS))
+(defn schedule [^Callable f ^long secs]
+  (.schedule ^ScheduledExecutorService scheduler f secs TimeUnit/SECONDS))
 
 ;; json responses are sent as "size-of-response\njson-response"
-(defn size-json-str [json]
+(defn size-json-str [^String json]
   (let [size (alength (.getBytes json "UTF-8"))]
     (str size "\n" json)))
 
@@ -188,7 +188,7 @@
               (async-adapter/head respond 200 (merge headers ie-headers))
               (async-adapter/write-chunk respond "<html><body>\n")
               (when (seq domain)
-                (async-adapter/write-chunk respond (str "<script>try{document.domain=\"" (pr-str (json/json-str domain)) "\";}catch(e){}</script>\n"))))
+                (async-adapter/write-chunk respond (str "<script>try{document.domain=\"" (pr-str (json/write-str domain)) "\";}catch(e){}</script>\n"))))
   (write [this data]
          (async-adapter/write-chunk respond (str "<script>try {parent.m(" (pr-str data) ")} catch(e) {}</script>\n"))
          (when-not write-padding-sent
@@ -379,7 +379,7 @@
                           flush-buffer)))
   (clear-heartbeat [this]
                    (when heartbeat-timeout
-                       (.cancel heartbeat-timeout
+                       (.cancel ^ScheduledFuture heartbeat-timeout
                                 false ;; do not interrupt running tasks
                                 ))
                    (assoc this :heartbeat-timeout nil))
@@ -397,7 +397,7 @@
                                        (:heartbeat-interval details))))))
   (clear-session-timeout [this]
                          (when session-timeout
-                           (.cancel session-timeout
+                           (.cancel ^ScheduledFuture  session-timeout
                                     false ;; do not interrupt running tasks
                                     ))
                          (assoc this :session-timeout nil))
@@ -526,7 +526,7 @@
                                  flush-buffer))))
 
 (defn send-map [session-id map]
-  (send-string session-id (json/json-str map)))
+  (send-string session-id (json/write-str map)))
 
 ;; wrap the respond function from :reactor with the proper
 ;; responsewrapper for either IE or other clients
@@ -563,7 +563,7 @@
                           (rand-nth prefixes))]
         {:status 200
          :headers (assoc (:headers options) "X-Accept" "application/json; application/x-www-form-urlencoded")
-         :body (json/json-str [host-prefix,nil])})
+         :body (json/write-str [host-prefix,nil])})
       
       ;; else phase 2 for get /test
       ;; client checks if connection is buffered
@@ -600,7 +600,7 @@
         {:status 200
          :headers (assoc (:headers options) "Content-Type" "application/javascript")
          :body
-         (size-json-str (json/json-str [[0,["c", session-id, host-prefix, 8]]]))})
+         (size-json-str (json/write-str [[0,["c", session-id, host-prefix, 8]]]))})
       ;; For existing sessions:
       ;; Forward sent data by client to listeners
       ;; reply with
@@ -613,7 +613,7 @@
         (let [status (session-status @session-agent)]
           {:status 200
            :headers (:headers options)
-           :body (size-json-str (json/json-str status))})))))
+           :body (size-json-str (json/write-str status))})))))
 
 ;; GET req server->client is a backwardchannel opened by client
 (defn handle-backward-channel [req session-agent options]
@@ -664,7 +664,7 @@
   (let [options (merge default-options options)
         base (str (:base options))]
     (-> (fn [req]
-          (let [uri (:uri req)
+          (let [uri ^String (:uri req)
                 method (:request-method req)]
             (cond
              (and (.startsWith uri (str base "/test"))

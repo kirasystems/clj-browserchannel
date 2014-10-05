@@ -1,9 +1,9 @@
-(defproject net.thegeez/clj-browserchannel-jetty-adapter "0.0.2"
+(defproject net.thegeez/clj-browserchannel-jetty-adapter "0.0.3-SNAPSHOT"
   :description "Jetty async adapter for BrowserChannel"
   :url ""
-  :dependencies [[org.clojure/clojure "1.3.0"]
-                 [ring/ring-core "1.2.2"]
-                 [ring/ring-servlet "1.2.0" :exclusions [javax.servlet/servlet-api]]
-                 [org.eclipse.jetty/jetty-server "8.1.13.v20130916"];; includes ssl
-                 [net.thegeez/clj-browserchannel-server "0.0.5"]
+  :dependencies [[org.clojure/clojure "1.6.0" :scope "provided"]
+                 [ring/ring-core "1.3.1"]
+                 [ring/ring-servlet "1.3.0" :exclusions [javax.servlet/servlet-api]]
+                 [org.eclipse.jetty/jetty-server "8.1.16.v20140903"];; includes ssl
+                 [net.thegeez/clj-browserchannel-server "0.0.7-SNAPSHOT"]
                  ])
