@@ -128,6 +128,14 @@
 (defn error-response [status-code message]
   {:status status-code
    :body (str "<html><body><h1>" message "</h1></body></html>")})
+
+(defn agent-error-handler-fn
+  "Prints the error and tries to restart the agent."
+  [id]
+  (fn [ag ^Exception e]
+    (println "ERROR:" id "agent threw" e (.getMessage e))
+    (restart-agent ag @ag)))
+
 ;;;;;; end of utils
 
 ;;;; listeners
@@ -136,6 +144,8 @@
 ;; sessionId -> :event -> [call back]
 ;; event: :map | :close
 (def listeners-agent (agent {}))
+(set-error-handler! listeners-agent (agent-error-handler-fn "listener"))
+
 
 (defn add-listener [session-id event-key f]
   (send-off listeners-agent
@@ -506,6 +516,7 @@
                       ;; when the client never connects with a backchannel
                       refresh-session-timeout)
           session-agent (agent session)]
+      (set-error-handler! session-agent (agent-error-handler-fn (str "session-" (:id session))))
       (swap! sessions assoc id session-agent)
       (when-let [notify (:on-session options)]
         (notify id req))
