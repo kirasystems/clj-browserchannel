@@ -133,8 +133,7 @@
   "Prints the error and tries to restart the agent."
   [id]
   (fn [ag ^Exception e]
-    (println "ERROR:" id "agent threw" e (.getMessage e))
-    (restart-agent ag @ag)))
+    (println "ERROR:" id "agent threw" e (.getMessage e))))
 
 ;;;;;; end of utils
 
@@ -145,6 +144,7 @@
 ;; event: :map | :close
 (def listeners-agent (agent {}))
 (set-error-handler! listeners-agent (agent-error-handler-fn "listener"))
+(set-error-mode! listeners-agent :continue)
 
 
 (defn add-listener [session-id event-key f]
@@ -517,6 +517,7 @@
                       refresh-session-timeout)
           session-agent (agent session)]
       (set-error-handler! session-agent (agent-error-handler-fn (str "session-" (:id session))))
+      (set-error-mode! session-agent :continue)
       (swap! sessions assoc id session-agent)
       (when-let [notify (:on-session options)]
         (notify id req))
