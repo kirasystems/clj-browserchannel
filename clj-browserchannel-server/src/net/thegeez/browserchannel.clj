@@ -151,11 +151,11 @@
   (send-off listeners-agent
             update-in [session-id event-key] #(conj (or % []) f)))
 
-(defn notify-listeners [session-id event-key & data]
+(defn notify-listeners [session-id request event-key & data]
   (send-off listeners-agent
             (fn [listeners]
               (doseq [callback (get-in listeners [session-id event-key])]
-                (apply callback data))
+                (apply callback request data))
               listeners)))
 ;; end of listeners
 
@@ -316,7 +316,7 @@
 
   ;; after close this session cannot be reconnected to.
   ;; removes session for sessions
-  (close [this message]))
+  (close [this request message]))
 
 (defrecord BackChannel [;; respond wraps the continuation, which is
                         ;; the actual connection of the backward
@@ -417,7 +417,7 @@
                                (assoc :session-timeout
                                  (let [session-agent *agent*]
                                    (schedule (fn []
-                                               (send-off session-agent close "Timed out"))
+                                               (send-off session-agent close nil "Timed out"))
                                              (:session-timeout-interval details))))))
   (queue-string [this string]
                 (update-in this [:array-buffer] queue string))
@@ -464,7 +464,7 @@
                     this ;; do nothing if buffer is empty
                     )))
   ;; closes the session and removes it from sessions
-  (close [this message]
+  (close [this request message]
 
          (-> this
              clear-back-channel
@@ -472,7 +472,7 @@
              ;; the heartbeat timeout is cancelled by clear-back-channel
              )
          (swap! sessions dissoc id)
-         (notify-listeners id :close message)
+         (notify-listeners id request :close message)
          nil ;; the agent will no longer wrap a session
          ))
 
@@ -489,7 +489,7 @@
       (send-off old-session-agent #(-> (if old-array-id
                                          (acknowledge-arrays % old-array-id)
                                          %)
-                                       (close "Reconnected"))))
+                                       (close req "Reconnected"))))
     (let [id (uuid)
           details {:address (:remote-addr req)
                    :headers (:headers req)
@@ -621,7 +621,7 @@
       ;; send as json for XHR and IE
       (do
         (doseq [map maps]
-          (notify-listeners (:id @session-agent) :map map))
+          (notify-listeners (:id @session-agent) req :map map))
         (let [status (session-status @session-agent)]
           {:status 200
            :headers (:headers options)
@@ -642,7 +642,7 @@
      ;; this is a request made in an img tag
      (do ;;end session
        (when session-agent
-         (send-off session-agent close "Disconnected"))
+         (send-off session-agent close req "Disconnected"))
        {:status 200
         :headers (:headers options)
         :body ""}
