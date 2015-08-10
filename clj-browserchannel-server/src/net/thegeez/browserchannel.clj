@@ -89,8 +89,9 @@
     {:ofs (Long/parseLong ofs)
      :maps (->> (for [[k v] pieces]
                   (let [[_ n k] (re-find #"req(\d+)_(\w+)" k)]
-                    [n {k v}]))
+                    [(Long/parseLong n) {k v}]))
                 (group-by first)    ; {0 [[0 [k1 v2]] [0 [k2 v2]]],1 [[1 [k1 v1]] [1 [k2 v2]]]}
+                (sort-by first)     ;; order by request number so that messages are recieved on server in same order
                 (map #(into {} (map second (val %)))))}))
 
 (assert (= {:ofs 0 :maps [{"x" "3" "y" "10"} {"abc" "def"}]}
