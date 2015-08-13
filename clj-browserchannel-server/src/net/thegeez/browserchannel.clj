@@ -328,6 +328,8 @@
                         ;; this is used for diagnostic purposes by the client
                         bytes-sent])
 
+(defn to-pair [p] (str "[" (first p) "," (second p) "]"))
+
 (defrecord Session [;; must be unique
                     id
 
@@ -436,11 +438,10 @@
                     (try
                       ;; buffer contains [[1 json-str] ...] can't use
                       ;; json-str which will double escape the json
-                      (let [data (str "["
-                                      (str/join "," (map (fn [[n d]] (str "[" n "," d "]")) to-flush))
-                                      "]")]
-                        ;; write throws exception when the connection is closed
-                        (write (:respond back-channel) data))
+
+                      (doseq [p to-flush #_(next to-flush)]
+                        (write (:respond back-channel) (str "[" (to-pair p) "]")))
+
                       ;; size is an approximation
                       (let [this (let [size (reduce + 0 (map count (map second to-flush)))]
                                    (-> this
